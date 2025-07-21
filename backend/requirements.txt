@@ -1,0 +1,19 @@
+# Core Django packages
+Django==4.2.7
+djangorestframework==3.14.0
+
+# Database
+psycopg2-binary==2.9.7
+
+# CORS and JWT
+django-cors-headers==4.3.1
+djangorestframework-simplejwt==5.3.0
+
+# Image handling
+Pillow==10.0.1
+
+# Configuration
+python-decouple==3.8
+
+# Additional utilities
+gunicorn==21.2.0 

@@ -1,0 +1,30 @@
+# Python
+backend/venv/
+backend/__pycache__/
+backend/**/*.pyc
+backend/db.sqlite3*
+
+# Node
+node_modules/
+dist/
+
+# Environment
+.env
+*.env
+.env.*
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+build/
+
+# Misc
+*.bak
+*.swp
+.idea/
+.vscode/ 

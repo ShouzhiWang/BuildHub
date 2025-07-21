@@ -1,0 +1,62 @@
+services:
+  # PostgreSQL Database - COMMENTED OUT FOR DEVELOPMENT (USING LOCAL POSTGRES)
+  # UNCOMMENT FOR PRODUCTION DEPLOYMENT
+  # postgres:
+  #   image: postgres:15
+  #   environment:
+  #     - POSTGRES_DB=buildhub
+  #     - POSTGRES_USER=buildhub_user
+  #     - POSTGRES_PASSWORD=buildhub_password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5433:5432"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U buildhub_user -d buildhub"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # Django Backend
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+      - backend_static:/app/staticfiles
+      - backend_media:/app/media
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=True
+      - USE_SQLITE=False
+      - DB_NAME=buildhub
+      - DB_USER=buildhub_user
+      - DB_PASSWORD=buildhub_password
+      - DB_HOST=host.docker.internal  # For development - connects to local PostgreSQL
+      - DB_PORT=5432
+      - SECRET_KEY=django-insecure-development-key-change-in-production
+    # UNCOMMENT FOR PRODUCTION:
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+
+  # React Frontend - Development mode without build
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    ports:
+      - "5173:5173"   # Vite default
+    volumes:
+      - .:/app
+      - /app/node_modules  # Anonymous volume for node_modules
+    environment:
+      - NODE_ENV=development
+    command: sh -c "npm install && npm run dev"
+
+volumes:
+  backend_static:
+  backend_media:
+  postgres_data: 

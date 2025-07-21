@@ -1,0 +1,23 @@
+# Use official Node image
+FROM node:20-alpine
+
+# Install yarn
+RUN npm install -g yarn
+
+# Set working directory
+WORKDIR /app
+
+# Copy package.json and yarn.lock first for better caching
+COPY package*.json yarn.lock* ./
+
+# Install dependencies with yarn
+RUN yarn install --frozen-lockfile --network-timeout 300000
+
+# Copy the rest of the app
+COPY . .
+
+# Expose port (Vite default is 5173)
+EXPOSE 5173
+
+# Start the dev server with host binding for Docker
+CMD ["yarn", "dev"] 
