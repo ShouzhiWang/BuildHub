@@ -49,7 +49,13 @@ const GlobalSearch = () => {
       setShowDropdown(true);
     } catch (error) {
       console.error('Search error:', error);
-      setResults({ projects: [], users: [], total_results: 0, query });
+      setResults({ 
+        projects: [], 
+        users: [], 
+        total_results: 0, 
+        query,
+        error: 'Search failed. Please try again.' 
+      });
     } finally {
       setLoading(false);
     }
@@ -111,10 +117,16 @@ const GlobalSearch = () => {
             {loading && (
               <div className="flex items-center">
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-600 border-t-transparent mr-2"></div>
-                <p className="mt-2">{t('loading')}</p>
+                <p>{t('searching')}...</p>
               </div>
             )}
-            {!loading && results && (results.projects.length === 0 && results.users.length === 0) && (
+            {!loading && results?.error && (
+              <div className="flex items-center text-red-600">
+                <XCircleIcon className="w-4 h-4 mr-2" />
+                <p>{results.error}</p>
+              </div>
+            )}
+            {!loading && results && !results.error && (results.projects.length === 0 && results.users.length === 0) && (
               <p>{t('noResults')}</p>
             )}
           </div>

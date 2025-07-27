@@ -60,7 +60,14 @@ const ProfilePage = () => {
   const [profile, setProfile] = useState(null);
   const [projects, setProjects] = useState([]);
   const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState({ bio: '', skills: [], location: '', avatar: null });
+  const [form, setForm] = useState({ 
+    bio: '', 
+    skills: [], 
+    location: '', 
+    avatar: null,
+    education: [],
+    companies: []
+  });
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -98,6 +105,8 @@ const ProfilePage = () => {
           skills: profileData.skills || [],
           location: profileData.location || '',
           avatar: null,
+          education: profileData.education || [],
+          companies: profileData.companies || [],
         });
         
         // Construct full avatar URL
@@ -174,6 +183,8 @@ const ProfilePage = () => {
       skills: profileData.skills || [],
       location: profileData.location || '',
       avatar: null,
+      education: profileData.education || [],
+      companies: profileData.companies || [],
     });
     
     // Restore the original avatar preview
@@ -190,21 +201,33 @@ const ProfilePage = () => {
       setSaving(true);
       setError('');
       
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('bio', form.bio);
-      formData.append('skills', form.skills.join(',')); // send as comma-separated string
-      formData.append('location', form.location);
+      let requestData;
+      let headers = {};
+      
       if (form.avatar) {
-        formData.append('avatar', form.avatar);
+        // Use FormData if there's a file upload
+        requestData = new FormData();
+        requestData.append('bio', form.bio);
+        requestData.append('skills', form.skills.join(','));
+        requestData.append('location', form.location);
+        requestData.append('education', JSON.stringify(form.education || []));
+        requestData.append('companies', JSON.stringify(form.companies || []));
+        requestData.append('avatar', form.avatar);
+        headers = { 'Content-Type': 'multipart/form-data' };
+      } else {
+        // Use JSON if no file upload
+        requestData = {
+          bio: form.bio,
+          skills: form.skills.join(','),
+          location: form.location,
+          education: form.education || [],
+          companies: form.companies || [],
+        };
+        headers = { 'Content-Type': 'application/json' };
       }
       
       // Update profile
-      await api.put('/auth/profile/', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      await api.put('/auth/profile/', requestData, { headers });
       // Refetch profile
       const res = await api.get('/auth/profile/');
       setProfile(res.data);
@@ -237,6 +260,54 @@ const ProfilePage = () => {
       addSkill(skillInput.trim());
       setSkillInput('');
     }
+  };
+
+  // Education handlers
+  const addEducation = () => {
+    setForm(f => ({ 
+      ...f, 
+      education: [...(f.education || []), { university: '', major: '', degree: '', year: '' }] 
+    }));
+  };
+
+  const updateEducation = (index, field, value) => {
+    setForm(f => ({
+      ...f,
+      education: (f.education || []).map((edu, i) => 
+        i === index ? { ...edu, [field]: value } : edu
+      )
+    }));
+  };
+
+  const removeEducation = (index) => {
+    setForm(f => ({
+      ...f,
+      education: (f.education || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  // Company handlers
+  const addCompany = () => {
+    setForm(f => ({ 
+      ...f, 
+      companies: [...(f.companies || []), { company: '', role: '', duration: '' }] 
+    }));
+  };
+
+  const updateCompany = (index, field, value) => {
+    setForm(f => ({
+      ...f,
+      companies: (f.companies || []).map((comp, i) => 
+        i === index ? { ...comp, [field]: value } : comp
+      )
+    }));
+  };
+
+  const removeCompany = (index) => {
+    setForm(f => ({
+      ...f,
+      companies: (f.companies || []).filter((_, i) => i !== index)
+    }));
   };
 
   const getStatusStyle = (status) => {
@@ -303,6 +374,8 @@ const ProfilePage = () => {
                       skills: profileData.skills || [],
                       location: profileData.location || '',
                       avatar: null,
+                      education: profileData.education || [],
+                      companies: profileData.companies || [],
                     });
                     
                     const avatarUrl = profileData.avatar;
@@ -589,6 +662,155 @@ const ProfilePage = () => {
                     <p className="text-gray-400 italic">{t('noLocationSpecified')}</p>
                   )}
                 </div>
+              )}
+            </div>
+
+            {/* Education Section */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <CpuChipIcon className="w-5 h-5 text-gray-400 mr-2" />
+                  <h2 className="text-lg font-semibold text-gray-900">{t('education')}</h2>
+                </div>
+                {editMode && (
+                  <button
+                    onClick={addEducation}
+                    className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+                  >
+                    {t('addEducation')}
+                  </button>
+                )}
+              </div>
+              
+              {(form.education || []).length > 0 ? (
+                <div className="space-y-4">
+                  {(form.education || []).map((edu, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                      {editMode ? (
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start">
+                            <h3 className="font-medium text-gray-900">{t('educationEntry')} {index + 1}</h3>
+                            <button
+                              onClick={() => removeEducation(index)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <XMarkIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              value={edu.university}
+                              onChange={(e) => updateEducation(index, 'university', e.target.value)}
+                              placeholder={t('university')}
+                              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <input
+                              type="text"
+                              value={edu.major}
+                              onChange={(e) => updateEducation(index, 'major', e.target.value)}
+                              placeholder={t('major')}
+                              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <input
+                              type="text"
+                              value={edu.degree}
+                              onChange={(e) => updateEducation(index, 'degree', e.target.value)}
+                              placeholder={t('degree')}
+                              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <input
+                              type="text"
+                              value={edu.year}
+                              onChange={(e) => updateEducation(index, 'year', e.target.value)}
+                              placeholder={t('year')}
+                              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-gray-700">
+                          <p className="font-medium">{edu.university}</p>
+                          <p className="text-sm text-gray-600">{edu.major} - {edu.degree}</p>
+                          <p className="text-sm text-gray-500">{edu.year}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 italic">{t('noEducationAddedYet')}</p>
+              )}
+            </div>
+
+            {/* Company Section */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <BriefcaseIcon className="w-5 h-5 text-gray-400 mr-2" />
+                  <h2 className="text-lg font-semibold text-gray-900">{t('companies')}</h2>
+                </div>
+                {editMode && (
+                  <button
+                    onClick={addCompany}
+                    className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+                  >
+                    {t('addCompany')}
+                  </button>
+                )}
+              </div>
+              
+              {(form.companies || []).length > 0 ? (
+                <div className="space-y-4">
+                  {(form.companies || []).map((comp, index) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                      {editMode ? (
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-start">
+                            <h3 className="font-medium text-gray-900">{t('companyEntry')} {index + 1}</h3>
+                            <button
+                              onClick={() => removeCompany(index)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <XMarkIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              value={comp.company}
+                              onChange={(e) => updateCompany(index, 'company', e.target.value)}
+                              placeholder={t('companyName')}
+                              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <input
+                              type="text"
+                              value={comp.role}
+                              onChange={(e) => updateCompany(index, 'role', e.target.value)}
+                              placeholder={t('role')}
+                              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <input
+                              type="text"
+                              value={comp.duration}
+                              onChange={(e) => updateCompany(index, 'duration', e.target.value)}
+                              placeholder={t('duration')}
+                              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-gray-700">
+                          <p className="font-medium">{comp.company}</p>
+                          <p className="text-sm text-gray-600">{comp.role}</p>
+                          <p className="text-sm text-gray-500">{comp.duration}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-400 italic">{t('noCompaniesAddedYet')}</p>
               )}
             </div>
 

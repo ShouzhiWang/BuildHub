@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from '../hooks/useTranslation';
-import { UserIcon, PlusIcon, HomeIcon, FolderIcon, BellIcon } from '@heroicons/react/24/outline';
+import { UserIcon, PlusIcon, HomeIcon, FolderIcon, BellIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../api/config';
 import GlobalSearch from './GlobalSearch';
 import LanguageSwitcher from './LanguageSwitcher';
@@ -21,6 +21,7 @@ const Navigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -64,28 +65,49 @@ const Navigation = () => {
     <nav className="bg-white shadow-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
+          {/* Mobile menu button */}
+          <div className="md:hidden">
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="text-gray-700 hover:text-indigo-600 p-2 rounded-md transition-colors duration-200"
+              aria-label="Toggle mobile menu"
+            >
+              {mobileMenuOpen ? (
+                <XMarkIcon className="w-6 h-6" />
+              ) : (
+                <Bars3Icon className="w-6 h-6" />
+              )}
+            </button>
+          </div>
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2 group">
             <div className="w-8 h-8 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center transform group-hover:scale-110 transition-transform duration-200">
-              <span className="text-white font-bold text-lg">B</span>
+              <span className="text-white font-bold text-lg">G</span>
             </div>
-            <span className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors duration-200">BuildHub</span>
+            <span className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors duration-200">GEISP</span>
           </Link>
 
           {/* Search Bar */}
           <div className="hidden md:block flex-1 max-w-md mx-8">
             <GlobalSearch />
           </div>
+          
+          {/* Mobile Search Bar */}
+          <div className="md:hidden flex-1 mx-4">
+            <GlobalSearch />
+          </div>
 
           {/* Main Navigation */}
           <div className="hidden md:flex space-x-2">
-            <Link
-              to="/"
-              className="flex items-center space-x-1 text-gray-700 hover:bg-indigo-100 hover:text-indigo-600 px-3 py-2 rounded-md transition-all duration-200 transform hover:scale-105"
-            >
-              <HomeIcon className="w-5 h-5" />
-              <span>{t('home')}</span>
-            </Link>
+            {location.pathname !== '/' && (
+              <Link
+                to="/"
+                className="flex items-center space-x-1 text-gray-700 hover:bg-indigo-100 hover:text-indigo-600 px-3 py-2 rounded-md transition-all duration-200 transform hover:scale-105"
+              >
+                <HomeIcon className="w-5 h-5" />
+                <span>{t('home')}</span>
+              </Link>
+            )}
             <Link
               to="/projects"
               className="flex items-center space-x-1 text-gray-700 hover:bg-indigo-100 hover:text-indigo-600 px-3 py-2 rounded-md transition-all duration-200 transform hover:scale-105"
@@ -177,14 +199,16 @@ const Navigation = () => {
         </div>
 
         {/* Mobile Navigation */}
-        <div className="md:hidden">
+        <div className={`md:hidden ${mobileMenuOpen ? 'block' : 'hidden'}`}>
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <Link
-              to="/"
-              className="text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 block px-3 py-2 rounded-md transition-all duration-200"
-            >
-              {t('home')}
-            </Link>
+            {location.pathname !== '/' && (
+              <Link
+                to="/"
+                className="text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 block px-3 py-2 rounded-md transition-all duration-200"
+              >
+                {t('home')}
+              </Link>
+            )}
             <Link
               to="/projects"
               className="text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 block px-3 py-2 rounded-md transition-all duration-200"

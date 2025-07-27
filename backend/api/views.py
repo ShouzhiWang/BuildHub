@@ -8,13 +8,16 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q, Count
 from django.utils import timezone
 from datetime import timedelta
-from .models import Category, Project, Component, Step, Comment, Message, Bookmark, ProjectMember
+from .models import Category, Project, Component, Step, Comment, Message, Bookmark, ProjectMember, ProjectSlideshow, BillOfMaterialItem
 from .serializers import (
     UserSerializer, UserProfileSerializer, CategorySerializer, ProjectListSerializer,
     ProjectDetailSerializer, ProjectCreateUpdateSerializer, CommentSerializer, CommentReplySerializer, MessageSerializer,
-    AdminUserSerializer, BookmarkSerializer
+    AdminUserSerializer, BookmarkSerializer, ProjectSlideshowSerializer, SlideshowUploadSerializer
 )
 from rest_framework.permissions import IsAdminUser
+import subprocess
+import sys
+import os
 
 
 # Authentication Views
@@ -126,6 +129,7 @@ class CategoryListView(generics.ListAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [permissions.AllowAny]
+    pagination_class = None  # Disable pagination for categories
 
 
 # Project Views
@@ -149,11 +153,13 @@ class ProjectListCreateView(generics.ListCreateAPIView):
         # Public visitors see only published projects
         if user is None:
             queryset = queryset.filter(status='published')
-        # Non-staff authenticated users see their own drafts/pending plus published projects
+        # Non-staff authenticated users see their own projects, published projects, and private projects they're members of
         elif not user.is_staff:
             queryset = queryset.filter(
-                Q(status='published') | Q(author=user)
-            )
+                Q(status='published') | 
+                Q(author=user) |
+                Q(team_members__user=user)  # Include private projects where user is a member
+            ).distinct()
         # Staff users see everything
 
         # Additional optional filters
@@ -235,13 +241,21 @@ class ProjectDetailView(generics.RetrieveUpdateDestroyAPIView):
                     self.request, 
                     message='You can only modify your own or managed projects.'
                 )
-        # Prevent non-authenticated or non-owner from viewing drafts/pending
-        if obj.status != 'published':
+        # Prevent non-authenticated or non-owner from viewing drafts/pending/private
+        if obj.status not in ['published', 'private']:
             user = self.request.user if self.request.user.is_authenticated else None
             if user is None or (not user.is_staff and obj.author != user):
                 self.permission_denied(
                     self.request,
                     message='This project is not published.'
+                )
+        # For private projects, check if user is a member
+        elif obj.status == 'private':
+            user = self.request.user if self.request.user.is_authenticated else None
+            if user is None or (not user.is_staff and obj.author != user and not obj.team_members.filter(user=user).exists()):
+                self.permission_denied(
+                    self.request,
+                    message='This project is private and you are not a member.'
                 )
         return obj
 
@@ -479,8 +493,22 @@ def global_search_view(request):
         return Response(results)
     
     if search_type in ['all', 'projects']:
-        # Search projects
-        projects_queryset = Project.objects.filter(status='published')
+        # Search projects - include published and private projects user has access to
+        user = request.user if request.user.is_authenticated else None
+        if user is None:
+            # Public visitors only see published projects
+            projects_queryset = Project.objects.filter(status='published')
+        elif user.is_staff:
+            # Staff see all projects
+            projects_queryset = Project.objects.all()
+        else:
+            # Regular users see published projects, their own projects, and private projects they're members of
+            projects_queryset = Project.objects.filter(
+                Q(status='published') | 
+                Q(author=user) |
+                Q(team_members__user=user)
+            ).distinct()
+        
         projects = projects_queryset.filter(
             Q(title__icontains=query) |
             Q(description__icontains=query) |
@@ -502,3 +530,94 @@ def global_search_view(request):
     
     results['total_results'] = len(results['projects']) + len(results['users'])
     return Response(results)
+
+
+# Slideshow API Views
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def upload_slideshow(request, project_id):
+    """Upload a PowerPoint or PDF file and convert to images"""
+    project = get_object_or_404(Project, id=project_id)
+    if project.author != request.user:
+        return Response({'error': 'You do not have permission to edit this project'}, status=status.HTTP_403_FORBIDDEN)
+    slideshow, _ = ProjectSlideshow.objects.get_or_create(project=project)
+    serializer = SlideshowUploadSerializer(slideshow, data=request.data, partial=True)
+    if serializer.is_valid():
+        slideshow = serializer.save()
+        # Trigger conversion in background
+        try:
+            script_path = os.path.join(os.path.dirname(__file__), '..', 'convert_slides.py')
+            subprocess.Popen([
+                sys.executable, script_path, str(slideshow.id)
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:
+            print(f"Error triggering conversion: {e}")
+        return Response({
+            'message': 'File uploaded successfully. Conversion in progress...',
+            'slideshow': ProjectSlideshowSerializer(slideshow).data
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def get_slideshow(request, project_id):
+    """Get slideshow data for a project"""
+    project = get_object_or_404(Project, id=project_id)
+    try:
+        slideshow = ProjectSlideshow.objects.get(project=project)
+        return Response(ProjectSlideshowSerializer(slideshow).data)
+    except ProjectSlideshow.DoesNotExist:
+        return Response({'error': 'Slideshow not found'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['DELETE'])
+@permission_classes([permissions.IsAuthenticated])
+def delete_slideshow(request, project_id):
+    """Delete slideshow for a project"""
+    project = get_object_or_404(Project, id=project_id)
+    if project.author != request.user:
+        return Response({'error': 'You do not have permission to edit this project'}, status=status.HTTP_403_FORBIDDEN)
+    try:
+        slideshow = ProjectSlideshow.objects.get(project=project)
+        slideshow.delete()
+        return Response({'message': 'Slideshow deleted successfully'}, status=status.HTTP_200_OK)
+    except ProjectSlideshow.DoesNotExist:
+        return Response({'error': 'Slideshow not found'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def search_components_view(request):
+    """Search for existing components/materials by name"""
+    query = request.GET.get('q', '').strip()
+    item_type = request.GET.get('type', '').strip()
+    
+    if not query:
+        return Response([], status=status.HTTP_200_OK)
+    
+    # Build the queryset
+    queryset = BillOfMaterialItem.objects.filter(name__icontains=query)
+    
+    # Filter by item type if specified
+    if item_type:
+        queryset = queryset.filter(item_type=item_type)
+    
+    # Get unique components (group by name and item_type to avoid duplicates)
+    from django.db.models import Max
+    components = queryset.values('name', 'item_type', 'description', 'link').annotate(
+        latest_id=Max('id')
+    ).order_by('name')[:20]  # Limit to 20 results
+    
+    # Format the response
+    results = []
+    for component in components:
+        results.append({
+            'id': component['latest_id'],
+            'name': component['name'],
+            'item_type': component['item_type'],
+            'description': component['description'],
+            'link': component['link']
+        })
+    
+    return Response(results, status=status.HTTP_200_OK)
+
+

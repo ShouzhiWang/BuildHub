@@ -44,6 +44,13 @@ urlpatterns = [
     path('bookmarks/', views.user_bookmarks, name='user_bookmarks'),
     path('projects/<int:project_id>/bookmark-status/', views.check_bookmark_status, name='check_bookmark_status'),
     
+    # Slideshow endpoints
+    path('projects/<int:project_id>/slideshow/', views.upload_slideshow, name='upload_slideshow'),
+    path('projects/<int:project_id>/slideshow/get/', views.get_slideshow, name='get_slideshow'),
+    path('projects/<int:project_id>/slideshow/delete/', views.delete_slideshow, name='delete_slideshow'),
+
+    
     # Search endpoints
     path('search/', views.global_search_view, name='global_search'),
+    path('components/search/', views.search_components_view, name='search_components'),
 ] 

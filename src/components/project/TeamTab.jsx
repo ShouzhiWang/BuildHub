@@ -116,7 +116,7 @@ const TeamTab = ({ formData, updateFormData, errors }) => {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{t('teamMembers')}</h3>
-            <p className="text-sm text-gray-600">{t('addBuildHubUsers')}</p>
+            <p className="text-sm text-gray-600">{t('addGEISPUsers')}</p>
           </div>
           <button
             type="button"

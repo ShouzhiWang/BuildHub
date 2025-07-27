@@ -7,11 +7,33 @@ export default defineConfig({
     port: 5173,
     watch: {
       usePolling: true
+    },
+    proxy: {
+      '/api': {
+        target: 'http://backend:8000',
+        changeOrigin: true,
+      },
+      '/media': {
+        target: 'http://backend:8000',
+        changeOrigin: true,
+      }
     }
   },
   plugins: [react()],
   optimizeDeps: {
     force: true
   },
-  clearScreen: false
+  clearScreen: false,
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+        }
+      }
+    }
+  }
 });

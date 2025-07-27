@@ -8,6 +8,7 @@ import TeamTab from '../components/project/TeamTab';
 import ThingsTab from '../components/project/ThingsTab';
 import StoryTab from '../components/project/StoryTab';
 import AttachmentsTab from '../components/project/AttachmentsTab';
+
 import { 
   DocumentTextIcon, 
   UserGroupIcon, 
@@ -413,6 +414,7 @@ const CreateProjectPage = () => {
             formData={formData}
             updateFormData={updateFormData}
             errors={errors}
+            projectId={editId}
           />
         );
       case 'attachments':

@@ -201,6 +201,52 @@ const UserProfilePage = () => {
             </div>
           </div>
 
+          {/* Education Section */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center mb-4">
+              <TagIcon className="w-5 h-5 text-gray-400 mr-2" />
+              <h2 className="text-lg font-semibold text-gray-900">{t('education')}</h2>
+            </div>
+            <div className="space-y-3">
+              {profile.profile?.education && profile.profile.education.length > 0 ? (
+                profile.profile.education.map((edu, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4">
+                    <div className="text-gray-700">
+                      <p className="font-medium">{edu.university}</p>
+                      <p className="text-sm text-gray-600">{edu.major} - {edu.degree}</p>
+                      <p className="text-sm text-gray-500">{edu.year}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-400 italic">{t('noEducationAddedYet')}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Company Section */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="flex items-center mb-4">
+              <BriefcaseIcon className="w-5 h-5 text-gray-400 mr-2" />
+              <h2 className="text-lg font-semibold text-gray-900">{t('companies')}</h2>
+            </div>
+            <div className="space-y-3">
+              {profile.profile?.companies && profile.profile.companies.length > 0 ? (
+                profile.profile.companies.map((comp, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4">
+                    <div className="text-gray-700">
+                      <p className="font-medium">{comp.company}</p>
+                      <p className="text-sm text-gray-600">{comp.role}</p>
+                      <p className="text-sm text-gray-500">{comp.duration}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-400 italic">{t('noCompaniesAddedYet')}</p>
+              )}
+            </div>
+          </div>
+
           {/* Projects Section */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-center mb-4">

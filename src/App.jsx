@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import Navigation from './components/Navigation';
@@ -18,11 +18,23 @@ import SearchResultsPage from './pages/SearchResultsPage';
 import AdminDashboardPage from './pages/AdminDashboardPage';
 import './index.css';
 
+// ScrollToTop component to handle automatic scrolling on route changes
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+};
+
 function App() {
   return (
     <Router>
       <AuthProvider>
         <LanguageProvider>
+          <ScrollToTop />
           <div className="min-h-screen bg-gray-50 flex flex-col">
             <Navigation />
             <main className="flex-grow">

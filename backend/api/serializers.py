@@ -1,8 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
+import json
 from .models import (
     Category, Project, Component, Step, Comment, 
-    ProjectMember, WorkAttribution, BillOfMaterialItem, Attachment, UserProfile, Message, Bookmark
+    ProjectMember, WorkAttribution, BillOfMaterialItem, Attachment, UserProfile, Message, Bookmark,
+    ProjectSlideshow, SlideshowSlide
 )
 
 class SkillsField(serializers.Field):
@@ -21,10 +23,40 @@ class SkillsField(serializers.Field):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     skills = SkillsField(required=False)
+    avatar = serializers.SerializerMethodField()
     
     class Meta:
         model = UserProfile
-        fields = ['bio', 'skills', 'location', 'avatar']
+        fields = ['bio', 'skills', 'location', 'avatar', 'education', 'companies']
+    
+    def get_avatar(self, obj):
+        if obj.avatar:
+            return obj.avatar.url
+        return None
+    
+    def to_internal_value(self, data):
+        # Handle JSON fields from form data
+        data = data.copy() if isinstance(data, dict) else data
+        
+        if 'education' in data:
+            if isinstance(data['education'], str):
+                try:
+                    data['education'] = json.loads(data['education'])
+                except (json.JSONDecodeError, TypeError):
+                    data['education'] = []
+            elif not isinstance(data['education'], list):
+                data['education'] = []
+        
+        if 'companies' in data:
+            if isinstance(data['companies'], str):
+                try:
+                    data['companies'] = json.loads(data['companies'])
+                except (json.JSONDecodeError, TypeError):
+                    data['companies'] = []
+            elif not isinstance(data['companies'], list):
+                data['companies'] = []
+        
+        return super().to_internal_value(data)
 
         
 class UserSerializer(serializers.ModelSerializer):
@@ -81,9 +113,16 @@ class ComponentSerializer(serializers.ModelSerializer):
 
 class StepSerializer(serializers.ModelSerializer):
     """Serializer for Step model"""
+    image = serializers.SerializerMethodField()
+    
     class Meta:
         model = Step
         fields = ['id', 'step_number', 'title', 'instructions', 'image']
+    
+    def get_image(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -152,28 +191,43 @@ class WorkAttributionSerializer(serializers.ModelSerializer):
 
 class BillOfMaterialItemSerializer(serializers.ModelSerializer):
     """Serializer for BillOfMaterialItem model"""
+    image = serializers.SerializerMethodField()
+    
     class Meta:
         model = BillOfMaterialItem
         fields = [
             'id', 'item_type', 'name', 'description', 'quantity', 
             'image', 'link', 'created_at'
         ]
+    
+    def get_image(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
 
 
 class AttachmentSerializer(serializers.ModelSerializer):
     """Serializer for Attachment model"""
+    file_upload = serializers.SerializerMethodField()
+    
     class Meta:
         model = Attachment
         fields = [
             'id', 'attachment_type', 'title', 'file_upload', 
             'repository_link', 'description', 'created_at'
         ]
+    
+    def get_file_upload(self, obj):
+        if obj.file_upload:
+            return obj.file_upload.url
+        return None
 
 
 class ProjectListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for project lists"""
     author = UserSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
+    cover_image = serializers.SerializerMethodField()
     comments_count = serializers.SerializerMethodField()
     
     class Meta:
@@ -183,6 +237,11 @@ class ProjectListSerializer(serializers.ModelSerializer):
             'author', 'category', 'difficulty', 'status', 'created_at', 'comments_count', 'story_content'
         ]
     
+    def get_cover_image(self, obj):
+        if obj.cover_image:
+            return obj.cover_image.url
+        return None
+    
     def get_comments_count(self, obj):
         return obj.comments.count()
 
@@ -191,6 +250,7 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
     """Detailed serializer for individual projects with all related data"""
     author = UserSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
+    cover_image = serializers.SerializerMethodField()
     
     # Related models
     team_members = ProjectMemberSerializer(many=True, read_only=True)
@@ -213,6 +273,11 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
             'team_members', 'work_attributions', 'bill_of_materials', 'attachments',
             'components', 'steps', 'comments', 'comments_count'
         ]
+    
+    def get_cover_image(self, obj):
+        if obj.cover_image:
+            return obj.cover_image.url
+        return None
     
     def get_comments_count(self, obj):
         return obj.comments.count()
@@ -432,4 +497,64 @@ class BookmarkSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bookmark
         fields = ['id', 'user', 'project', 'created_at']
-        read_only_fields = ['id', 'user', 'created_at'] 
+        read_only_fields = ['id', 'user', 'created_at']
+
+
+class SlideshowSlideSerializer(serializers.ModelSerializer):
+    """Serializer for individual slideshow slides"""
+    image = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = SlideshowSlide
+        fields = ['id', 'slide_number', 'image', 'created_at']
+    
+    def get_image(self, obj):
+        if obj.image:
+            return obj.image.url
+        return None
+
+
+class ProjectSlideshowSerializer(serializers.ModelSerializer):
+    """Serializer for project slideshows"""
+    slides = SlideshowSlideSerializer(many=True, read_only=True)
+    original_file = serializers.SerializerMethodField()
+    slides_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ProjectSlideshow
+        fields = ['id', 'title', 'description', 'original_file', 'slides', 'slides_count', 'created_at', 'updated_at']
+    
+    def get_original_file(self, obj):
+        if obj.original_file:
+            return obj.original_file.url
+        return None
+    
+    def get_slides_count(self, obj):
+        return obj.slides.count()
+
+
+class SlideshowUploadSerializer(serializers.ModelSerializer):
+    """Serializer for uploading slideshow files"""
+    original_file = serializers.FileField(
+        help_text="PDF file"
+    )
+    
+    class Meta:
+        model = ProjectSlideshow
+        fields = ['title', 'description', 'original_file']
+    
+    def validate_original_file(self, value):
+        import os
+        allowed_extensions = ['.pdf']
+        file_extension = os.path.splitext(value.name)[1].lower()
+        
+        if file_extension not in allowed_extensions:
+            raise serializers.ValidationError(
+                "Only PDF files are supported."
+            )
+        
+        # Check file size (20MB limit)
+        if value.size > 20 * 1024 * 1024:  # 20MB
+            raise serializers.ValidationError("File size must be less than 20MB.")
+        
+        return value 

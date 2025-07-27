@@ -5,6 +5,7 @@ import { useTranslation } from '../hooks/useTranslation';
 import api from '../api/config';
 import CommentForm from '../components/CommentForm';
 import CommentList from '../components/CommentList';
+
 import { 
   PencilSquareIcon, 
   ArrowLeftIcon, 
@@ -18,7 +19,11 @@ import {
   CubeIcon,
   PaperClipIcon,
   ListBulletIcon,
-  PhotoIcon
+  PhotoIcon,
+  PresentationChartBarIcon,
+  ArrowsPointingOutIcon,
+  ArrowsPointingInIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 const getFullAvatarUrl = (avatarUrl) => {
@@ -123,9 +128,16 @@ const ProjectDetailPage = () => {
   const [error, setError] = useState(null);
   const [tableOfContents, setTableOfContents] = useState([]);
   const [activeSection, setActiveSection] = useState('');
+  
+  // Slideshow state
+  const [slideshow, setSlideshow] = useState(null);
+  const [slideshowLoading, setSlideshowLoading] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     fetchProjectAndComments();
+    fetchSlideshow();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -223,6 +235,72 @@ const ProjectDetailPage = () => {
     }
   };
 
+  // Slideshow functions
+  const fetchSlideshow = async () => {
+    if (!id) return;
+    setSlideshowLoading(true);
+    try {
+      const response = await api.get(`/projects/${id}/slideshow/get/`);
+      setSlideshow(response.data);
+      setCurrentSlide(0);
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        console.error('Error fetching slideshow:', error);
+      }
+      setSlideshow(null);
+    } finally {
+      setSlideshowLoading(false);
+    }
+  };
+
+  const nextSlide = () => {
+    if (slideshow?.slides && currentSlide < slideshow.slides.length - 1) {
+      setCurrentSlide(currentSlide + 1);
+    }
+  };
+
+  const prevSlide = () => {
+    if (currentSlide > 0) {
+      setCurrentSlide(currentSlide - 1);
+    }
+  };
+
+  const goToSlide = (index) => {
+    if (slideshow?.slides && index >= 0 && index < slideshow.slides.length) {
+      setCurrentSlide(index);
+    }
+  };
+
+  // Fullscreen functions
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
+
+  const closeFullscreen = () => {
+    setIsFullscreen(false);
+  };
+
+  // Handle escape key to close fullscreen
+  useEffect(() => {
+    const handleEscape = (event) => {
+      if (event.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+
+    if (isFullscreen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isFullscreen]);
+
   // Determine if the user can edit: admin, author, or manager collaborator
   const canEdit = user && project && (
     user.id === project.author?.id ||
@@ -286,8 +364,18 @@ const ProjectDetailPage = () => {
                 {project.difficulty ? t(project.difficulty.toLowerCase()) : ''}
               </span>
               {project.status !== 'published' && (
-                <span className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 uppercase">
-                  {project.status}
+                <span
+                  className={`px-3 py-1 rounded-full uppercase ${
+                    project.status === 'private'
+                      ? 'bg-purple-100 text-purple-800'
+                      : project.status === 'draft'
+                      ? 'bg-gray-100 text-gray-800'
+                      : project.status === 'pending'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}
+                >
+                  {project.status === 'private' ? t('private') : project.status}
                 </span>
               )}
             </div>
@@ -310,6 +398,23 @@ const ProjectDetailPage = () => {
                     className="inline-flex items-center px-4 py-2 bg-yellow-400 text-white rounded-lg cursor-not-allowed opacity-70"
                   >
                     <CheckCircleIcon className="w-5 h-5 mr-2" /> {t('pendingReview')}
+                  </button>
+                ) : project.status === 'private' ? (
+                  <button
+                    onClick={async () => {
+                      if (!window.confirm(t('confirmRequestPublish'))) return;
+                      try {
+                        await api.patch(`/projects/${project.id}/`, { status: 'pending' });
+                        alert(t('publishRequestSent'));
+                        // Optionally, refetch project data
+                        fetchProjectAndComments();
+                      } catch (err) {
+                        alert(t('failedToRequestPublish'));
+                      }
+                    }}
+                    className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
+                  >
+                    <CheckCircleIcon className="w-5 h-5 mr-2" /> {t('makePublic')}
                   </button>
                 ) : (
                   <button
@@ -349,13 +454,109 @@ const ProjectDetailPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
+            {/* Slideshow Section */}
+            {slideshowLoading ? (
+              <section className="bg-white rounded-xl shadow-sm p-8 mb-8">
+                <div className="flex items-center mb-6">
+                  <PresentationChartBarIcon className="w-6 h-6 text-purple-600 mr-3" />
+                  <h2 className="text-2xl font-bold text-gray-900">{t('projectSlideshow')}</h2>
+                </div>
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-purple-600 border-t-transparent"></div>
+                </div>
+              </section>
+            ) : slideshow && slideshow.slides && slideshow.slides.length > 0 ? (
+              <section className="bg-white rounded-xl shadow-sm p-8 mb-8">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center">
+                    <PresentationChartBarIcon className="w-6 h-6 text-purple-600 mr-3" />
+                    <h2 className="text-2xl font-bold text-gray-900">{t('projectSlideshow')}</h2>
+                  </div>
+                  <button
+                    onClick={toggleFullscreen}
+                    className="inline-flex items-center px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 text-sm"
+                    title={t('closeFullscreen')}
+                  >
+                    <ArrowsPointingOutIcon className="w-4 h-4 mr-2" />
+                    {t('fullscreen')}
+                  </button>
+                </div>
+                
+                {/* Slideshow Carousel */}
+                <div className="relative">
+                  {/* Main Slide */}
+                  <div className="relative mb-4">
+                    <img
+                      src={slideshow.slides[currentSlide].image}
+                      alt={`Slide ${slideshow.slides[currentSlide].slide_number}`}
+                      className="w-full rounded-lg shadow-lg max-h-96 object-contain bg-white"
+                    />
+                    
+                    {/* Navigation Buttons */}
+                    {slideshow.slides.length > 1 && (
+                      <>
+                        <button
+                          onClick={prevSlide}
+                          disabled={currentSlide === 0}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 bg-white bg-opacity-90 hover:bg-opacity-100 text-purple-600 rounded-full p-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          aria-label={t('previousSlide')}
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={nextSlide}
+                          disabled={currentSlide === slideshow.slides.length - 1}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 bg-white bg-opacity-90 hover:bg-opacity-100 text-purple-600 rounded-full p-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                          aria-label={t('nextSlide')}
+                        >
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Thumbnails */}
+                  {slideshow.slides.length > 1 && (
+                    <div className="flex justify-center gap-2 mb-4">
+                      {slideshow.slides.map((slide, idx) => (
+                        <button
+                          key={slide.id}
+                          onClick={() => goToSlide(idx)}
+                          className={`w-16 h-10 object-cover rounded border-2 transition-all ${
+                            idx === currentSlide 
+                              ? 'border-purple-600 opacity-100' 
+                              : 'border-gray-300 opacity-60 hover:opacity-80'
+                          }`}
+                        >
+                          <img
+                            src={slide.image}
+                            alt={`Slide ${slide.slide_number}`}
+                            className="w-full h-full object-cover rounded"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Slide Counter */}
+                  <div className="text-center text-sm text-gray-600">
+                    {t('currentSlide', { current: currentSlide + 1, total: slideshow.slides.length })}
+                  </div>
+                </div>
+              </section>
+            ) : null}
+
             {/* Story Section */}
             <section className="bg-white rounded-xl shadow-sm p-8">
               <div className="flex items-center mb-6">
                 <DocumentTextIcon className="w-6 h-6 text-indigo-600 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">{t('projectStory')}</h2>
               </div>
-              <div className="story-content prose prose-lg max-w-none text-gray-700 leading-relaxed prose-headings:text-gray-900 prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-h4:text-lg prose-p:mb-6 prose-ul:list-disc prose-ul:ml-0 prose-ul:pl-8 prose-ul:mb-6 prose-ol:list-decimal prose-ol:ml-0 prose-ol:pl-8 prose-ol:mb-6 prose-li:mb-2 prose-li:pl-2 prose-li:leading-relaxed prose-blockquote:border-l-4 prose-blockquote:border-indigo-200 prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:my-6 prose-code:bg-gray-100 prose-code:px-2 prose-code:py-1 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white prose-pre:p-4 prose-pre:rounded-lg prose-img:rounded-lg prose-img:shadow-md prose-strong:font-semibold prose-em:italic">
+              <div className="story-content prose prose-lg max-w-none text-gray-700 leading-relaxed prose-headings:text-gray-900 prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-h4:text-lg prose-p:mb-6 prose-ul:list-disc prose-ul:ml-0 prose-ul:pl-8 prose-ul:mb-6 prose-ol:list-decimal prose-ol:ml-0 prose-ol:pl-8 prose-ol:mb-6 prose-li:mb-2 prose-li:pl-2 prose-li:leading-relaxed prose-blockquote:border-l-4 prose-blockquote:border-indigo-200 prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:my-6 prose-code:bg-gray-100 prose-code:px-2 prose-code:py-1 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-white prose-pre:p-4 prose-pre:rounded-lg prose-img:rounded-lg prose-img:shadow-md prose-strong:font-semibold prose-em:italic overflow-hidden">
                 {project.story_content ? (
                   <div
                     dangerouslySetInnerHTML={{ __html: project.story_content }}
@@ -365,6 +566,8 @@ const ProjectDetailPage = () => {
                 )}
               </div>
             </section>
+
+
 
             {/* Bill of Materials */}
             {project.bill_of_materials?.length > 0 && (
@@ -627,6 +830,85 @@ const ProjectDetailPage = () => {
           />
         </section>
       </div>
+
+      {/* Fullscreen Slideshow Modal */}
+      {isFullscreen && slideshow && slideshow.slides && slideshow.slides.length > 0 && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
+          <div className="relative w-full h-full flex items-center justify-center p-4">
+            {/* Close Button */}
+            <button
+              onClick={closeFullscreen}
+              className="absolute top-4 right-4 z-10 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full p-3 transition-all"
+              aria-label={t('closeFullscreen')}
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+
+            {/* Fullscreen Image */}
+            <div className="relative max-w-full max-h-full">
+              <img
+                src={slideshow.slides[currentSlide].image}
+                alt={`Slide ${slideshow.slides[currentSlide].slide_number}`}
+                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              />
+              
+              {/* Navigation Controls */}
+              {slideshow.slides.length > 1 && (
+                <>
+                  <button
+                    onClick={prevSlide}
+                    disabled={currentSlide === 0}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full p-4 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    aria-label={t('previousSlide')}
+                  >
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={nextSlide}
+                    disabled={currentSlide === slideshow.slides.length - 1}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full p-4 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    aria-label={t('nextSlide')}
+                  >
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Slide Counter */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black bg-opacity-50 text-white px-4 py-2 rounded-lg">
+              {t('currentSlide', { current: currentSlide + 1, total: slideshow.slides.length })}
+            </div>
+
+            {/* Thumbnails */}
+            {slideshow.slides.length > 1 && (
+              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-2">
+                {slideshow.slides.map((slide, idx) => (
+                  <button
+                    key={slide.id}
+                    onClick={() => goToSlide(idx)}
+                    className={`w-12 h-8 object-cover rounded border-2 transition-all ${
+                      idx === currentSlide 
+                        ? 'border-white opacity-100' 
+                        : 'border-gray-400 opacity-60 hover:opacity-80'
+                    }`}
+                  >
+                    <img
+                      src={slide.image}
+                      alt={`Slide ${slide.slide_number}`}
+                      className="w-full h-full object-cover rounded"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

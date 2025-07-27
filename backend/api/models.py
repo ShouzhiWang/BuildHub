@@ -12,6 +12,7 @@ class Category(models.Model):
     
     class Meta:
         verbose_name_plural = "Categories"
+        ordering = ['name']  # Order alphabetically by name
 
 
 class Project(models.Model):
@@ -25,7 +26,8 @@ class Project(models.Model):
     STATUS_CHOICES = [
         ('draft', 'Draft'),         # User is still editing / private
         ('pending', 'Pending'),     # User requested publish, awaiting admin approval
-        ('published', 'Published'), # Visible to everyone
+        ('published', 'Published'), # Visible to everyone (public)
+        ('private', 'Private'),     # Only visible to members (no approval needed)
         ('rejected', 'Rejected'),   # Admin rejected the project
     ]
     
@@ -208,6 +210,10 @@ class UserProfile(models.Model):
     skills = models.JSONField(default=list, blank=True)
     location = models.CharField(max_length=100, blank=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
+    
+    # Education and Company information
+    education = models.JSONField(default=list, blank=True, help_text="List of education entries with university and major")
+    companies = models.JSONField(default=list, blank=True, help_text="List of company entries with company name and role")
 
     def __str__(self):
         return f"{self.user.username}'s profile"
@@ -225,6 +231,44 @@ class Bookmark(models.Model):
     
     def __str__(self):
         return f"{self.user.username} bookmarked {self.project.title}"
+
+
+class ProjectSlideshow(models.Model):
+    """Slideshow model for PowerPoint/PDF presentations"""
+    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name='slideshow')
+    original_file = models.FileField(
+        upload_to='project_slideshows/',
+        help_text="Original PowerPoint (.ppt/.pptx) or PDF file"
+    )
+    title = models.CharField(max_length=200, blank=True, help_text="Optional title for the slideshow")
+    description = models.TextField(blank=True, help_text="Optional description of the slideshow")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Slideshow for {self.project.title}"
+    
+    class Meta:
+        ordering = ['-created_at']
+
+
+class SlideshowSlide(models.Model):
+    """Individual slide images converted from PowerPoint/PDF"""
+    slideshow = models.ForeignKey(ProjectSlideshow, on_delete=models.CASCADE, related_name='slides')
+    slide_number = models.IntegerField(help_text="Order of the slide in the presentation")
+    image = models.ImageField(
+        upload_to='slideshow_slides/',
+        help_text="Converted slide image"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Slide {self.slide_number} - {self.slideshow.project.title}"
+    
+    class Meta:
+        ordering = ['slide_number']
+        unique_together = ['slideshow', 'slide_number']
+
 
 # Signals to auto-create/update profile
 from django.db.models.signals import post_save

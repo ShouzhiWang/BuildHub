@@ -21,9 +21,9 @@ const Footer = () => {
           <div className="col-span-1 md:col-span-1">
             <div className="flex items-center space-x-2 mb-4">
               <div className="w-10 h-10 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">B</span>
+                <span className="text-white font-bold text-xl">G</span>
               </div>
-              <span className="text-2xl font-bold">BuildHub</span>
+              <span className="text-2xl font-bold">GEISP</span>
             </div>
             <p className="text-gray-400 mb-6 leading-relaxed">
               {t('joinCommunity')}
@@ -140,23 +140,7 @@ const Footer = () => {
           </div>
         </div>
 
-        {/* Newsletter Signup */}
-        <div className="mt-12 pt-8 border-t border-gray-700">
-          <div className="max-w-xl mx-auto text-center">
-            <h4 className="text-lg font-semibold mb-4">Stay Updated</h4>
-            <p className="text-gray-400 mb-6">Get the latest projects and updates delivered to your inbox.</p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-              />
-              <button className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:shadow-lg transform hover:scale-105 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Subscribe
-              </button>
-            </div>
-          </div>
-        </div>
+
 
         {/* Bottom Bar */}
         <div className="mt-12 pt-8 border-t border-gray-700 flex flex-col sm:flex-row justify-between items-center">
@@ -166,7 +150,7 @@ const Footer = () => {
           <div className="flex items-center text-gray-400 text-sm">
             <span>Made with</span>
             <HeartIcon className="w-4 h-4 mx-1 text-red-500" />
-            <span>by the BuildHub team</span>
+            <span>by the GEISP team</span>
           </div>
         </div>
       </div>

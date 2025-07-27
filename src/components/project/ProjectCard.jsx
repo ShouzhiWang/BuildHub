@@ -190,6 +190,8 @@ const ProjectCard = ({ project }) => {
               ? 'bg-red-500'
               : project.status === 'draft'
               ? 'bg-gray-500'
+              : project.status === 'private'
+              ? 'bg-purple-500'
               : 'bg-yellow-500'
           } text-white text-xs px-2 py-1 rounded-full uppercase`}
         >
@@ -258,7 +260,7 @@ const ProjectCard = ({ project }) => {
         <div className="flex items-center space-x-4 text-gray-500 text-sm">
           <div className="flex items-center">
             <HeartIcon className="w-4 h-4 mr-1 text-red-500" />
-            <span>{Math.floor(Math.random() * 100) + 20}</span>
+            <span>{project.likes_count || Math.floor(Math.random() * 100) + 20}</span>
           </div>
           <div className="flex items-center">
             <ChatBubbleLeftIcon className="w-4 h-4 mr-1" />

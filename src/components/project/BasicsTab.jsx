@@ -1,10 +1,13 @@
-import React, { useRef } from 'react';
-import { PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import React, { useRef, useState, useEffect } from 'react';
+import { PhotoIcon, XMarkIcon, MagnifyingGlassIcon, ChevronDownIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { useTranslation } from '../../hooks/useTranslation';
 
 const BasicsTab = ({ formData, updateFormData, categories, errors }) => {
   const { t } = useTranslation();
   const fileInputRef = useRef(null);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [filteredCategories, setFilteredCategories] = useState([]);
 
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
@@ -29,6 +32,60 @@ const BasicsTab = ({ formData, updateFormData, categories, errors }) => {
     return URL.createObjectURL(formData.cover_image);
   };
 
+  // Filter categories based on search input
+  useEffect(() => {
+    if (categorySearch.trim() === '') {
+      setFilteredCategories(categories);
+    } else {
+      const filtered = categories.filter(category =>
+        category.name.toLowerCase().includes(categorySearch.toLowerCase())
+      );
+      setFilteredCategories(filtered);
+    }
+  }, [categorySearch, categories]);
+
+  const handleCategorySelect = (category) => {
+    updateFormData('category_id', category.id);
+    setCategorySearch(category.name);
+    setShowCategoryDropdown(false);
+  };
+
+  const handleCategoryKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setShowCategoryDropdown(false);
+    }
+  };
+
+  const getSelectedCategoryName = () => {
+    if (!formData.category_id) return '';
+    const selectedCategory = categories.find(cat => cat.id == formData.category_id);
+    return selectedCategory ? selectedCategory.name : '';
+  };
+
+  // Initialize category search with selected category name
+  useEffect(() => {
+    if (formData.category_id && categories.length > 0) {
+      const selectedCategory = categories.find(cat => cat.id == formData.category_id);
+      if (selectedCategory) {
+        setCategorySearch(selectedCategory.name);
+      }
+    }
+  }, [formData.category_id, categories]);
+
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.category-dropdown-container')) {
+        setShowCategoryDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const categoryNameToKey = {
     'Arduino': 'categoryArduino',
     'Raspberry Pi': 'categoryRaspberryPi',
@@ -42,15 +99,15 @@ const BasicsTab = ({ formData, updateFormData, categories, errors }) => {
     'Drones': 'categoryDrones',
     'CNC': 'categoryCNC',
     'PCB Design': 'categoryPCBDesign',
-    'Embedded Systems': 'categoryEmbedded',
+    'Embedded Systems': 'categoryEmbeddedSystems',
     'Sensors': 'categorySensors',
     'Power Electronics': 'categoryPowerElectronics',
-    'Mechanical Design': 'categoryMechanical',
+    'Mechanical Design': 'categoryMechanicalDesign',
     'Home Automation': 'categoryHomeAutomation',
     'Test Equipment': 'categoryTestEquipment',
-    'Wireless Communication': 'categoryWireless',
+    'Wireless Communication': 'categoryWirelessCommunication',
     'Edge Computing': 'categoryEdgeComputing',
-    'Industrial Automation': 'categoryIndustrial',
+    'Industrial Automation': 'categoryIndustrialAutomation',
     'Prototyping': 'categoryPrototyping',
     'FPGA': 'categoryFPGA',
     'Microcontrollers': 'categoryMicrocontrollers',
@@ -62,7 +119,7 @@ const BasicsTab = ({ formData, updateFormData, categories, errors }) => {
     'Thermal Management': 'categoryThermalManagement',
     'Reverse Engineering': 'categoryReverseEngineering',
     'Hardware Security': 'categoryHardwareSecurity',
-    'Power Supply Design': 'categoryPowerSupply',
+    'Power Supply Design': 'categoryPowerSupplyDesign',
     'Analog Circuits': 'categoryAnalogCircuits',
     'Digital Circuits': 'categoryDigitalCircuits',
     'Motors': 'categoryMotors',
@@ -73,8 +130,8 @@ const BasicsTab = ({ formData, updateFormData, categories, errors }) => {
     'RF Design': 'categoryRFDesign',
     'Antenna Design': 'categoryAntennaDesign',
     'Workshop Safety': 'categoryWorkshopSafety',
-    'Low Power Design': 'categoryLowPower',
-    'High Speed Design': 'categoryHighSpeed',
+    'Low Power Design': 'categoryLowPowerDesign',
+    'High Speed Design': 'categoryHighSpeedDesign',
     'Schematic Capture': 'categorySchematicCapture',
     'PCB Fabrication': 'categoryPCBFabrication',
     'Bluetooth': 'categoryBluetooth',
@@ -231,25 +288,61 @@ const BasicsTab = ({ formData, updateFormData, categories, errors }) => {
           </div>
 
           {/* Category */}
-          <div>
+          <div className="relative category-dropdown-container">
             <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
               {t('category')} *
             </label>
-            <select
-              id="category"
-              value={formData.category_id}
-              onChange={(e) => updateFormData('category_id', e.target.value)}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 ${
-                errors.category_id ? 'border-red-300 focus:ring-red-500' : 'border-gray-300'
-              }`}
-            >
-              <option value="">{t('selectCategory')}</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name ? t(categoryNameToKey[category.name] || category.name) : ''}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <div className="relative">
+                <input
+                  type="text"
+                  id="category"
+                  value={categorySearch}
+                  onChange={(e) => {
+                    setCategorySearch(e.target.value);
+                    setShowCategoryDropdown(true);
+                  }}
+                  onFocus={() => setShowCategoryDropdown(true)}
+                  onKeyDown={handleCategoryKeyDown}
+                  placeholder={t('searchCategories')}
+                  className={`w-full px-4 py-3 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 ${
+                    errors.category_id ? 'border-red-300 focus:ring-red-500' : 'border-gray-300'
+                  }`}
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                </div>
+              </div>
+              
+              {/* Dropdown */}
+              {showCategoryDropdown && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {filteredCategories.length > 0 ? (
+                    filteredCategories.map((category) => (
+                      <button
+                        key={category.id}
+                        type="button"
+                        onClick={() => handleCategorySelect(category)}
+                        className={`w-full text-left px-4 py-3 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none transition-colors ${
+                          formData.category_id == category.id ? 'bg-indigo-50 text-indigo-700' : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span>{category.name ? t(categoryNameToKey[category.name] || category.name) : category.name}</span>
+                          {formData.category_id == category.id && (
+                            <CheckCircleIcon className="h-5 w-5 text-indigo-600" />
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-gray-500 text-sm">
+                      {t('noCategoriesFound')}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             {errors.category_id && (
               <p className="mt-1 text-sm text-red-600">{errors.category_id}</p>
             )}
@@ -272,6 +365,26 @@ const BasicsTab = ({ formData, updateFormData, categories, errors }) => {
             </select>
             <p className="mt-1 text-sm text-gray-500">
               {t('howChallenging')}
+            </p>
+          </div>
+
+          {/* Privacy Setting */}
+          <div>
+            <label htmlFor="privacy" className="block text-sm font-medium text-gray-700 mb-2">
+              {t('privacySetting')}
+            </label>
+            <select
+              id="privacy"
+              value={formData.status}
+              onChange={(e) => updateFormData('status', e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
+            >
+              <option value="draft">{t('draft')} - {t('draftDescription')}</option>
+              <option value="private">{t('private')} - {t('privateDescription')}</option>
+              <option value="pending">{t('pending')} - {t('pendingDescription')}</option>
+            </select>
+            <p className="mt-1 text-sm text-gray-500">
+              {formData.status === 'private' ? t('privateProjectInfo') : t('publicProjectInfo')}
             </p>
           </div>
 

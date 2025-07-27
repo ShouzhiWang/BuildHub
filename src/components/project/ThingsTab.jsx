@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { 
   PlusIcon, 
   XMarkIcon, 
@@ -6,12 +6,16 @@ import {
   CpuChipIcon,
   CodeBracketIcon,
   WrenchScrewdriverIcon,
-  LinkIcon
+  LinkIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { useTranslation } from '../../hooks/useTranslation';
+import ComponentSelector from './ComponentSelector';
 
 const ThingsTab = ({ formData, updateFormData, errors }) => {
   const { t } = useTranslation();
+  const [showComponentSelector, setShowComponentSelector] = useState(false);
+  const [selectedItemType, setSelectedItemType] = useState(null);
   const itemTypes = [
     {
       id: 'Hardware',
@@ -41,17 +45,26 @@ const ThingsTab = ({ formData, updateFormData, errors }) => {
   };
 
   const addItem = (type) => {
+    setSelectedItemType(type);
+    setShowComponentSelector(true);
+  };
+
+  const handleComponentSelect = (selectedComponent) => {
     const newItem = {
-      item_type: type,
-      name: '',
-      description: '',
-      quantity: type === 'Hardware' ? 1 : 1,
-      image: null,
-      link: ''
+      ...selectedComponent,
+      quantity: selectedComponent.item_type === 'Hardware' ? 1 : 1,
+      image: null
     };
     
     const updatedItems = [...formData.bill_of_materials, newItem];
     updateFormData('bill_of_materials', updatedItems);
+    setShowComponentSelector(false);
+    setSelectedItemType(null);
+  };
+
+  const handleComponentSelectorClose = () => {
+    setShowComponentSelector(false);
+    setSelectedItemType(null);
   };
 
   const removeItem = (index) => {
@@ -184,6 +197,15 @@ const ThingsTab = ({ formData, updateFormData, errors }) => {
           <li>{t('specifyQuantitiesAccurately')}</li>
         </ul>
       </div>
+
+      {/* Component Selector Modal */}
+      <ComponentSelector
+        itemType={selectedItemType}
+        onSelect={handleComponentSelect}
+        onCancel={handleComponentSelectorClose}
+        isOpen={showComponentSelector}
+        onClose={handleComponentSelectorClose}
+      />
     </div>
   );
 };
